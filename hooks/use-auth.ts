@@ -1,0 +1,198 @@
+"use client"
+
+import { useSession, signOut } from "next-auth/react"
+import { useRouter } from "next/navigation"
+import { useEffect, useState, useMemo, useCallback } from "react"
+import api from "@/lib/api"
+
+interface User {
+  id: string
+  email: string
+  name: string
+  image?: string
+  plan: string
+}
+
+export function useAuth() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    if (status !== "loading") {
+      setIsLoading(false)
+    }
+  }, [status])
+
+  const user: User | null = useMemo(() => session?.user ? {
+    id: (session.user as any).id || "",
+    email: session.user.email || "",
+    name: session.user.name || "",
+    image: session.user.image || undefined,
+    plan: (session.user as any).plan || "free",
+  } : null, [session])
+
+  const backendToken = (session as any)?.backendToken as string | undefined
+
+  const logout = useCallback(async () => {
+    await signOut({ callbackUrl: "/login" })
+  }, [])
+
+  const requireAuth = () => {
+    if (status === "unauthenticated") {
+      router.push("/login")
+    }
+  }
+
+  return {
+    user,
+    session,
+    status,
+    isLoading,
+    isAuthenticated: status === "authenticated",
+    backendToken,
+    logout,
+    requireAuth,
+  }
+}
+
+export function useApiWithAuth() {
+  const { backendToken, logout } = useAuth()
+
+  const guard = useCallback(async <T>(promise: Promise<T>): Promise<T> => {
+    try {
+      return await promise
+    } catch (error: any) {
+      if (error?.message === "Token expired. Please login again." || error?.response?.status === 401 || error?.response?.status === 403) {
+        await logout()
+      }
+      throw error // Re-throw to let components handle other errors if needed
+    }
+  }, [logout])
+
+  const apiWithToken = useMemo(() => ({
+    // Meetings
+    getMeetings: (params?: { page?: number; limit?: number; status?: string; search?: string }) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.getMeetings(backendToken, params))
+    },
+    getMeeting: (id: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.getMeeting(backendToken, id))
+    },
+    getMeetingAnalytics: (id: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.getMeetingAnalytics(backendToken, id))
+    },
+    getMeetingStatus: (id: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.getMeetingStatus(backendToken, id))
+    },
+    createMeeting: (data: any) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.createMeeting(backendToken, data))
+    },
+    createOnlineMeeting: (data: { meetingUrl: string; platform?: string; duration?: number }) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.createOnlineMeeting(backendToken, data))
+    },
+    updateMeeting: (id: string, data: any) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.updateMeeting(backendToken, id, data))
+    },
+    deleteMeeting: (id: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.deleteMeeting(backendToken, id))
+    },
+    retryTranscription: (id: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.retryTranscription(backendToken, id))
+    },
+    exportTranscript: (id: string, format: 'json' | 'txt' | 'srt' | 'vtt') => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.exportTranscript(backendToken, id, format))
+    },
+
+    // Tasks
+    getTasks: (params?: { status?: string; priority?: string; meetingId?: string }) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.getTasks(backendToken, params))
+    },
+    getKanbanTasks: (boardId?: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.getKanbanTasks(backendToken, boardId))
+    },
+    getTask: (id: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.getTask(backendToken, id))
+    },
+    createTask: (data: { title: string; description?: string; status?: string; priority?: string; dueDate?: string; assignee?: string; tags?: string[]; meetingId?: string; boardId?: string }) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.createTask(backendToken, data))
+    },
+    updateTask: (id: string, data: any) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.updateTask(backendToken, id, data))
+    },
+    deleteTask: (id: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.deleteTask(backendToken, id))
+    },
+    reorderTasks: (tasks: { id: string; status: string; order: number }[]) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.reorderTasks(backendToken, tasks))
+    },
+
+    // Analytics
+    getStats: () => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.getStats(backendToken))
+    },
+    getTrends: (period?: '7d' | '30d' | '90d') => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.getTrends(backendToken, period))
+    },
+    getPlatformStats: () => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.getPlatformStats(backendToken))
+    },
+    getRecentActivity: (limit?: number) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.getRecentActivity(backendToken, limit))
+    },
+
+    // Upload
+    uploadFile: (file: File, metadata?: any) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.uploadFile(backendToken, file, metadata))
+    },
+
+    // Profile
+    getProfile: () => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.getProfile(backendToken))
+    },
+    updateProfile: (data: { name?: string; preferences?: any }) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.updateProfile(backendToken, data))
+    },
+    // Boards
+    getBoards: () => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.getBoards(backendToken))
+    },
+    getBoard: (id: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.getBoard(backendToken, id))
+    },
+    createBoardFromMeeting: (meetingId: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.createBoardFromMeeting(backendToken, meetingId))
+    },
+  }), [backendToken, guard])
+
+  return {
+    api: apiWithToken,
+    isReady: !!backendToken,
+  }
+}
