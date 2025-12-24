@@ -3,7 +3,7 @@ export type Task = {
     _id?: string
     title: string
     description: string
-    assignee: string
+    assignee: string | null
     dueDate?: string
     tags?: string[]
     labelIds?: string[]

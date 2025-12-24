@@ -76,6 +76,7 @@ class ApiClient {
     const config: RequestInit = {
       method,
       headers: requestHeaders,
+      cache: 'no-store', // Ensure fresh data for real-time
     };
 
     if (body && method !== 'GET') {
@@ -111,7 +112,7 @@ class ApiClient {
   }
 
   // Meeting endpoints
-  async getMeetings(token: string, params?: { page?: number; limit?: number; status?: string; type?: string; search?: string }): Promise<MeetingsResponse> {
+  async getMeetings(token: string, params?: { page?: number; limit?: number; status?: string; type?: string; search?: string; filter?: string }): Promise<MeetingsResponse> {
     const queryString = params
       ? '?' + new URLSearchParams(params as any).toString()
       : '';
@@ -163,6 +164,34 @@ class ApiClient {
 
   async deleteMeeting(token: string, id: string) {
     return this.request(`/api/meetings/${id}`, {
+      method: 'DELETE',
+      token,
+    });
+  }
+
+  // Sharing & Collaboration (Meetings)
+  async generateMeetingShareLink(token: string, id: string) {
+    return this.request(`/api/meetings/${id}/share`, { method: 'POST', token });
+  }
+
+  async joinMeeting(token: string, shareToken: string) {
+    return this.request(`/api/meetings/join/${shareToken}`, { method: 'POST', token });
+  }
+
+  async revokeMeetingShareLink(token: string, id: string) {
+    return this.request(`/api/meetings/${id}/share`, { method: 'DELETE', token });
+  }
+
+  async updateMeetingCollaboratorRole(token: string, id: string, userId: string, role: string) {
+    return this.request(`/api/meetings/${id}/collaborators/${userId}`, {
+      method: 'PATCH',
+      token,
+      body: { role },
+    });
+  }
+
+  async removeMeetingCollaborator(token: string, id: string, userId: string) {
+    return this.request(`/api/meetings/${id}/collaborators/${userId}`, {
       method: 'DELETE',
       token,
     });
@@ -221,11 +250,11 @@ class ApiClient {
     });
   }
 
-  async reorderTasks(token: string, tasks: { id: string; order: number; status: string }[]) {
+  async reorderTasks(token: string, tasks: { id: string; order: number; status: string }[], boardId?: string) {
     return this.request('/api/tasks/reorder', {
       method: 'PATCH',
       token,
-      body: { tasks },
+      body: { tasks, boardId },
     });
   }
 
@@ -281,12 +310,23 @@ class ApiClient {
     return this.request('/api/health');
   }
   // Board endpoints
-  async getBoards(token: string) {
-    return this.request('/api/boards', { token });
+  async getBoards(token: string, params?: { filter?: string }) {
+    const queryString = params
+      ? '?' + new URLSearchParams(params as any).toString()
+      : '';
+    return this.request(`/api/boards${queryString}`, { token });
   }
 
   async getBoard(token: string, id: string) {
     return this.request(`/api/boards/${id}`, { token });
+  }
+
+  async updateBoard(token: string, id: string, data: any) {
+    return this.request(`/api/boards/${id}`, {
+      method: 'PATCH',
+      token,
+      body: data
+    });
   }
 
   async createBoardFromMeeting(token: string, meetingId: string) {
@@ -294,6 +334,34 @@ class ApiClient {
       method: 'POST',
       token,
       body: { meetingId },
+    });
+  }
+
+  // Sharing & Collaboration (Boards)
+  async generateBoardShareLink(token: string, id: string) {
+    return this.request(`/api/boards/${id}/share`, { method: 'POST', token });
+  }
+
+  async joinBoard(token: string, shareToken: string) {
+    return this.request(`/api/boards/join/${shareToken}`, { method: 'POST', token });
+  }
+
+  async revokeBoardShareLink(token: string, id: string) {
+    return this.request(`/api/boards/${id}/share`, { method: 'DELETE', token });
+  }
+
+  async updateBoardCollaboratorRole(token: string, id: string, userId: string, role: string) {
+    return this.request(`/api/boards/${id}/collaborators/${userId}`, {
+      method: 'PATCH',
+      token,
+      body: { role },
+    });
+  }
+
+  async removeBoardCollaborator(token: string, id: string, userId: string) {
+    return this.request(`/api/boards/${id}/collaborators/${userId}`, {
+      method: 'DELETE',
+      token,
     });
   }
 }

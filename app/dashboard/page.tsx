@@ -64,6 +64,7 @@ export default function Page() {
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [isLoadingMeetings, setIsLoadingMeetings] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [meetingFilter, setMeetingFilter] = useState<'all' | 'mine' | 'shared'>('all')
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
   const { api, isReady } = useApiWithAuth()
@@ -76,12 +77,12 @@ export default function Page() {
     }
   }, [authLoading, isAuthenticated, router])
 
-  // Fetch meetings on mount
+  // Fetch meetings on mount and when filter changes
   useEffect(() => {
     const fetchMeetings = async () => {
       try {
         setIsLoadingMeetings(true)
-        const response = await api.getMeetings({ limit: 10 })
+        const response = await api.getMeetings({ limit: 10, filter: meetingFilter } as any)
         setMeetings(response.meetings || [])
       } catch (error) {
         console.error("Error fetching meetings:", error)
@@ -100,7 +101,7 @@ export default function Page() {
         setIsLoadingMeetings(false)
       }
     }
-  }, [isReady, authLoading])
+  }, [isReady, authLoading, meetingFilter])
 
   // Format meeting data for MeetingCard
   const formatMeetingForCard = (meeting: Meeting) => ({
@@ -208,12 +209,18 @@ export default function Page() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
+                  <Select value={meetingFilter} onValueChange={(val: any) => setMeetingFilter(val)}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Semua Meeting" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Meeting</SelectItem>
+                      <SelectItem value="mine">Meeting Saya</SelectItem>
+                      <SelectItem value="shared">Dibagikan ke Saya</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Button variant="outline" className="flex items-center gap-2 bg-background-2 border-border">
-                    All Notes
-                    <IconChevronDown className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" className="flex items-center gap-2 bg-background-2 border-border">
-                    All Kind
+                    Semua Jenis
                     <IconChevronDown className="h-4 w-4" />
                   </Button>
                   <Button variant="outline" className="flex items-center gap-2 bg-background-2 border-border">

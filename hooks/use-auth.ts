@@ -56,8 +56,49 @@ export function useAuth() {
   }
 }
 
+interface AuthApi {
+  getMeetings: (params?: { page?: number; limit?: number; status?: string; search?: string; filter?: string }) => Promise<any>
+  getMeeting: (id: string) => Promise<any>
+  getMeetingAnalytics: (id: string) => Promise<any>
+  getMeetingStatus: (id: string) => Promise<any>
+  createMeeting: (data: any) => Promise<any>
+  createOnlineMeeting: (data: { meetingUrl: string; platform?: string; duration?: number }) => Promise<any>
+  updateMeeting: (id: string, data: any) => Promise<any>
+  deleteMeeting: (id: string) => Promise<any>
+  retryTranscription: (id: string) => Promise<any>
+  exportTranscript: (id: string, format: string) => Promise<any>
+  generateMeetingShareLink: (id: string) => Promise<any>
+  joinMeeting: (shareToken: string) => Promise<any>
+  revokeMeetingShareLink: (id: string) => Promise<any>
+  updateMeetingCollaboratorRole: (id: string, userId: string, role: string) => Promise<any>
+  removeMeetingCollaborator: (id: string, userId: string) => Promise<any>
+  getTasks: (params?: { status?: string; priority?: string; meetingId?: string }) => Promise<any>
+  getKanbanTasks: (boardId?: string) => Promise<any>
+  getTask: (id: string) => Promise<any>
+  createTask: (data: any) => Promise<any>
+  updateTask: (id: string, data: any) => Promise<any>
+  deleteTask: (id: string) => Promise<any>
+  reorderTasks: (tasks: any[], boardId?: string) => Promise<any>
+  getStats: () => Promise<any>
+  getTrends: (period?: string) => Promise<any>
+  getPlatformStats: () => Promise<any>
+  getRecentActivity: (limit?: number) => Promise<any>
+  uploadFile: (file: File, metadata?: any) => Promise<any>
+  getProfile: () => Promise<any>
+  updateProfile: (data: { name?: string; preferences?: any }) => Promise<any>
+  getBoards: (params?: { filter?: string }) => Promise<any>
+  getBoard: (id: string) => Promise<any>
+  updateBoard: (id: string, data: any) => Promise<any>
+  createBoardFromMeeting: (meetingId: string) => Promise<any>
+  generateBoardShareLink: (id: string) => Promise<any>
+  joinBoard: (shareToken: string) => Promise<any>
+  revokeBoardShareLink: (id: string) => Promise<any>
+  updateBoardCollaboratorRole: (id: string, userId: string, role: string) => Promise<any>
+  removeBoardCollaborator: (id: string, userId: string) => Promise<any>
+}
+
 export function useApiWithAuth() {
-  const { backendToken, logout } = useAuth()
+  const { user, backendToken, logout } = useAuth()
 
   const guard = useCallback(async <T>(promise: Promise<T>): Promise<T> => {
     try {
@@ -72,7 +113,7 @@ export function useApiWithAuth() {
 
   const apiWithToken = useMemo(() => ({
     // Meetings
-    getMeetings: (params?: { page?: number; limit?: number; status?: string; search?: string }) => {
+    getMeetings: (params?: { page?: number; limit?: number; status?: string; search?: string; filter?: string }) => {
       if (!backendToken) throw new Error("Not authenticated")
       return guard(api.getMeetings(backendToken, params))
     },
@@ -112,6 +153,26 @@ export function useApiWithAuth() {
       if (!backendToken) throw new Error("Not authenticated")
       return guard(api.exportTranscript(backendToken, id, format))
     },
+    generateMeetingShareLink: (id: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.generateMeetingShareLink(backendToken, id))
+    },
+    joinMeeting: (shareToken: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.joinMeeting(backendToken, shareToken))
+    },
+    revokeMeetingShareLink: (id: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.revokeMeetingShareLink(backendToken, id))
+    },
+    updateMeetingCollaboratorRole: (id: string, userId: string, role: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.updateMeetingCollaboratorRole(backendToken, id, userId, role))
+    },
+    removeMeetingCollaborator: (id: string, userId: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.removeMeetingCollaborator(backendToken, id, userId))
+    },
 
     // Tasks
     getTasks: (params?: { status?: string; priority?: string; meetingId?: string }) => {
@@ -138,9 +199,9 @@ export function useApiWithAuth() {
       if (!backendToken) throw new Error("Not authenticated")
       return guard(api.deleteTask(backendToken, id))
     },
-    reorderTasks: (tasks: { id: string; status: string; order: number }[]) => {
+    reorderTasks: (tasks: { id: string; status: string; order: number }[], boardId?: string) => {
       if (!backendToken) throw new Error("Not authenticated")
-      return guard(api.reorderTasks(backendToken, tasks))
+      return guard(api.reorderTasks(backendToken, tasks, boardId))
     },
 
     // Analytics
@@ -177,22 +238,47 @@ export function useApiWithAuth() {
       return guard(api.updateProfile(backendToken, data))
     },
     // Boards
-    getBoards: () => {
+    getBoards: (params?: { filter?: string }) => {
       if (!backendToken) throw new Error("Not authenticated")
-      return guard(api.getBoards(backendToken))
+      return guard(api.getBoards(backendToken, params))
     },
     getBoard: (id: string) => {
       if (!backendToken) throw new Error("Not authenticated")
       return guard(api.getBoard(backendToken, id))
     },
+    updateBoard: (id: string, data: any) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.updateBoard(backendToken, id, data))
+    },
     createBoardFromMeeting: (meetingId: string) => {
       if (!backendToken) throw new Error("Not authenticated")
       return guard(api.createBoardFromMeeting(backendToken, meetingId))
     },
-  }), [backendToken, guard])
+    generateBoardShareLink: (id: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.generateBoardShareLink(backendToken, id))
+    },
+    joinBoard: (shareToken: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.joinBoard(backendToken, shareToken))
+    },
+    revokeBoardShareLink: (id: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.revokeBoardShareLink(backendToken, id))
+    },
+    updateBoardCollaboratorRole: (id: string, userId: string, role: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.updateBoardCollaboratorRole(backendToken, id, userId, role))
+    },
+    removeBoardCollaborator: (id: string, userId: string) => {
+      if (!backendToken) throw new Error("Not authenticated")
+      return guard(api.removeBoardCollaborator(backendToken, id, userId))
+    },
+  }) as AuthApi, [backendToken, guard])
 
   return {
     api: apiWithToken,
     isReady: !!backendToken,
+    user,
   }
 }

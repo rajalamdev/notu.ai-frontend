@@ -18,9 +18,11 @@ interface KanbanColumnProps {
   labels: BoardLabel[]
   onAddTask: () => void
   onEditTask: (task: Task) => void
+  members?: { id: string, name: string }[]
+  canModify?: boolean
 }
 
-function SortableTaskCard({ task, labels, onClick, showProgress }: { task: Task; labels: BoardLabel[]; onClick: (t: Task) => void; showProgress?: boolean }) {
+function SortableTaskCard({ task, labels, onClick, showProgress, members }: { task: Task; labels: BoardLabel[]; onClick: (t: Task) => void; showProgress?: boolean; members?: { id: string, name: string }[] }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
   
   const style = {
@@ -31,12 +33,12 @@ function SortableTaskCard({ task, labels, onClick, showProgress }: { task: Task;
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <TaskCard task={task} showProgress={showProgress} onClick={onClick} labels={labels} />
+      <TaskCard task={task} showProgress={showProgress} onClick={onClick} labels={labels} members={members} />
     </div>
   )
 }
 
-export function KanbanColumn({ id, title, tasks, color, bgLight, bgDark, labels, onAddTask, onEditTask }: KanbanColumnProps) {
+export function KanbanColumn({ id, title, tasks, color, bgLight, bgDark, labels, onAddTask, onEditTask, members, canModify = true }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id })
   const showProgress = id === 'inProgress'
 
@@ -57,27 +59,29 @@ export function KanbanColumn({ id, title, tasks, color, bgLight, bgDark, labels,
         </div>
 
         {/* Tasks List */}
-        <SortableContext items={tasks.map((t) => t.id)} strategy={rectSortingStrategy}>
+        <SortableContext items={tasks.filter(Boolean).map((t) => t.id)} strategy={rectSortingStrategy}>
           <div className="space-y-3">
-            {tasks.map((task) => (
+            {tasks.filter(Boolean).map((task) => (
               <SortableTaskCard 
                 key={task.id} 
                 task={task} 
                 labels={labels}
                 onClick={onEditTask} 
                 showProgress={showProgress} 
+                members={members}
               />
             ))}
             
-            {/* Add Button Logic */}
-            <Card className="border-dashed border-2 border-gray-300 hover:border-gray-400 transition-colors">
-              <CardContent className="p-4 text-center">
-                <Button variant="ghost" className="w-full h-12 text-muted-foreground" onClick={onAddTask}>
-                  <IconPlus className="h-4 w-4 mr-2" />
-                  Add Task
-                </Button>
-              </CardContent>
-            </Card>
+            {canModify && (
+              <Card className="border-dashed border-2 border-gray-300 hover:border-gray-400 transition-colors">
+                <CardContent className="p-4 text-center">
+                  <Button variant="ghost" className="w-full h-12 text-muted-foreground" onClick={onAddTask}>
+                    <IconPlus className="h-4 w-4 mr-2" />
+                    Add Task
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </SortableContext>
       </div>

@@ -79,6 +79,18 @@ interface MeetingData {
     mimetype?: string
     originalName?: string
   }
+  collaborators?: Array<{
+    user: {
+      _id: string
+      name: string
+      email: string
+      image?: string
+    }
+    role: 'owner' | 'editor' | 'viewer'
+    joinedAt: string
+  }>
+  userRole?: 'owner' | 'editor' | 'viewer'
+  shareToken?: string
 }
 
 interface AnalyticsData {
@@ -125,6 +137,9 @@ export default function MeetingDetailPage() {
   const [activeSegmentIndex, setActiveSegmentIndex] = useState<number | null>(null)
   const [autoFollow, setAutoFollow] = useState(true)
   const transcriptContainerRef = useRef<HTMLDivElement>(null)
+  const [shareToken, setShareToken] = useState<string | null>(null)
+  const [showShareDialog, setShowShareDialog] = useState(false)
+  const [isGeneratingShare, setIsGeneratingShare] = useState(false)
 
   // Fetch meeting data
   const fetchMeeting = useCallback(async () => {
@@ -204,6 +219,41 @@ export default function MeetingDetailPage() {
       console.error("Error fetching tasks:", error)
     }
   }, [isReady, meetingId, api])
+
+  const handleGenerateShareLink = async () => {
+    if (!isReady || !meetingId) return
+    try {
+      setIsGeneratingShare(true)
+      const res = await api.generateMeetingShareLink(meetingId)
+      setShareToken(res.data.shareToken)
+    } catch (error) {
+      toast.error("Gagal generate link share")
+    } finally {
+      setIsGeneratingShare(false)
+    }
+  }
+
+  const handleUpdateRole = async (userId: string, role: string) => {
+    if (!isReady || !meetingId) return
+    try {
+      await api.updateMeetingCollaboratorRole(meetingId, userId, role)
+      toast.success("Role diperbarui")
+      fetchMeeting()
+    } catch (error) {
+      toast.error("Gagal perbarui role")
+    }
+  }
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!isReady || !meetingId) return
+    try {
+      await api.removeMeetingCollaborator(meetingId, userId)
+      toast.success("Member dihapus")
+      fetchMeeting()
+    } catch (error) {
+      toast.error("Gagal hapus member")
+    }
+  }
 
   useEffect(() => {
     if (isReady) {
@@ -509,10 +559,89 @@ export default function MeetingDetailPage() {
           </div>
           
           <div className="flex items-center gap-2">
-            <Button className="bg-[#6b4eff] hover:bg-[#5a3ee6] text-white rounded-full px-4 h-9 flex items-center gap-2">
-              <IconShare className="h-4 w-4" />
-              Share
-            </Button>
+            <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+              <DialogTrigger asChild>
+                <Button className="bg-[#6b4eff] hover:bg-[#5a3ee6] text-white rounded-full px-4 h-9 flex items-center gap-2" 
+                       onClick={() => handleGenerateShareLink()}>
+                  <IconShare className="h-4 w-4" />
+                  Share
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Share Meeting</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Link Akses Collab (Logged in Only)</label>
+                    <div className="flex gap-2">
+                      <Input 
+                        readOnly 
+                        value={shareToken ? `${window.location.origin}/dashboard/join/meeting/${shareToken}` : "Link belum digenerate..."} 
+                        className="bg-muted"
+                      />
+                      <Button size="icon" variant="outline" onClick={() => {
+                        if (shareToken) {
+                          navigator.clipboard.writeText(`${window.location.origin}/dashboard/join/meeting/${shareToken}`)
+                          toast.success("Link disalin")
+                        }
+                      }}>
+                        <IconCopy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {meeting.userRole === 'owner' && (
+                    <div className="space-y-3 pt-4 border-t">
+                      <h3 className="text-sm font-medium">Manajemen Member</h3>
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-xs font-bold text-purple-600">
+                              {user?.name?.[0] || 'O'}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">{user?.name} (Anda)</span>
+                              <span className="text-xs text-muted-foreground">Owner</span>
+                            </div>
+                          </div>
+                        </div>
+                        {meeting.collaborators?.map((col) => (
+                          <div key={col.user._id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-2">
+                              {col.user.image ? (
+                                <img src={col.user.image} className="w-8 h-8 rounded-full" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">
+                                  {col.user.name?.[0] || 'U'}
+                                </div>
+                              )}
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium">{col.user.name}</span>
+                                <span className="text-xs text-muted-foreground">{col.user.email}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <select 
+                                value={col.role}
+                                onChange={(e) => handleUpdateRole(col.user._id, e.target.value)}
+                                className="text-xs bg-transparent border-none focus:ring-0 cursor-pointer"
+                              >
+                                <option value="viewer">Viewer</option>
+                                <option value="editor">Editor</option>
+                              </select>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => handleRemoveMember(col.user._id)}>
+                                <IconPlus className="h-4 w-4 rotate-45" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
             
             <Button variant="outline" size="icon" className="rounded-full h-9 w-9" onClick={() => {
               navigator.clipboard.writeText(window.location.href)
