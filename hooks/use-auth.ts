@@ -86,10 +86,11 @@ interface AuthApi {
   uploadFile: (file: File, metadata?: any) => Promise<any>
   getProfile: () => Promise<any>
   updateProfile: (data: { name?: string; preferences?: any }) => Promise<any>
-  getBoards: (params?: { filter?: string }) => Promise<any>
+  getBoards: (params?: { filter?: string; meetingId?: string; search?: string; page?: number; limit?: number; source?: string }) => Promise<any>
   getBoard: (id: string) => Promise<any>
   updateBoard: (id: string, data: any) => Promise<any>
   createBoardFromMeeting: (meetingId: string) => Promise<any>
+  createBoard: (data: { title: string; description?: string; source?: string }) => Promise<any>
   generateBoardShareLink: (id: string) => Promise<any>
   joinBoard: (shareToken: string) => Promise<any>
   revokeBoardShareLink: (id: string) => Promise<any>
@@ -237,23 +238,27 @@ export function useApiWithAuth() {
       if (!backendToken) throw new Error("Not authenticated")
       return guard(api.updateProfile(backendToken, data))
     },
-    // Boards
-    getBoards: (params?: { filter?: string }) => {
-      if (!backendToken) throw new Error("Not authenticated")
-      return guard(api.getBoards(backendToken, params))
-    },
-    getBoard: (id: string) => {
-      if (!backendToken) throw new Error("Not authenticated")
-      return guard(api.getBoard(backendToken, id))
-    },
-    updateBoard: (id: string, data: any) => {
-      if (!backendToken) throw new Error("Not authenticated")
-      return guard(api.updateBoard(backendToken, id, data))
-    },
-    createBoardFromMeeting: (meetingId: string) => {
-      if (!backendToken) throw new Error("Not authenticated")
-      return guard(api.createBoardFromMeeting(backendToken, meetingId))
-    },
+      // Boards
+      getBoards: (params?: { filter?: string; meetingId?: string; search?: string; page?: number; limit?: number; source?: string }) => {
+        if (!backendToken) throw new Error("Not authenticated")
+        return guard(api.getBoards(backendToken, params))
+      },
+      getBoard: (id: string) => {
+        if (!backendToken) throw new Error("Not authenticated")
+        return guard(api.getBoard(backendToken, id))
+      },
+      updateBoard: (id: string, data: any) => {
+        if (!backendToken) throw new Error("Not authenticated")
+        return guard(api.updateBoard(backendToken, id, data))
+      },
+      createBoardFromMeeting: (meetingId: string) => {
+        if (!backendToken) throw new Error("Not authenticated")
+        return guard(api.createBoardFromMeeting(backendToken, meetingId))
+      },
+      createBoard: (data: { title: string; description?: string; source?: string }) => {
+        if (!backendToken) throw new Error("Not authenticated")
+        return guard(api.createBoard(backendToken, data))
+      },
     generateBoardShareLink: (id: string) => {
       if (!backendToken) throw new Error("Not authenticated")
       return guard(api.generateBoardShareLink(backendToken, id))

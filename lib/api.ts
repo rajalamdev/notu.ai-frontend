@@ -113,9 +113,11 @@ class ApiClient {
 
   // Meeting endpoints
   async getMeetings(token: string, params?: { page?: number; limit?: number; status?: string; type?: string; search?: string; filter?: string }): Promise<MeetingsResponse> {
-    const queryString = params
-      ? '?' + new URLSearchParams(params as any).toString()
-      : '';
+    let queryString = ''
+    if (params) {
+      const filtered = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
+      queryString = filtered.length ? '?' + new URLSearchParams(Object.fromEntries(filtered) as any).toString() : ''
+    }
     return this.request<MeetingsResponse>(`/api/meetings${queryString}`, { token });
   }
 
@@ -212,9 +214,11 @@ class ApiClient {
 
   // Task endpoints
   async getTasks(token: string, params?: { status?: string; meetingId?: string; priority?: string }): Promise<TasksResponse> {
-    const queryString = params
-      ? '?' + new URLSearchParams(params as any).toString()
-      : '';
+    let queryString = ''
+    if (params) {
+      const filtered = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
+      queryString = filtered.length ? '?' + new URLSearchParams(Object.fromEntries(filtered) as any).toString() : ''
+    }
     return this.request<TasksResponse>(`/api/tasks${queryString}`, { token });
   }
 
@@ -310,10 +314,12 @@ class ApiClient {
     return this.request('/api/health');
   }
   // Board endpoints
-  async getBoards(token: string, params?: { filter?: string }) {
-    const queryString = params
-      ? '?' + new URLSearchParams(params as any).toString()
-      : '';
+  async getBoards(token: string, params?: { filter?: string; meetingId?: string; search?: string; page?: number; limit?: number; source?: string }) {
+    let queryString = ''
+    if (params) {
+      const filtered = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
+      queryString = filtered.length ? '?' + new URLSearchParams(Object.fromEntries(filtered) as any).toString() : ''
+    }
     return this.request(`/api/boards${queryString}`, { token });
   }
 
@@ -333,7 +339,15 @@ class ApiClient {
     return this.request('/api/boards/from-meeting', {
       method: 'POST',
       token,
-      body: { meetingId },
+      body: meetingId,
+    });
+  }
+
+  async createBoard(token: string, data: { title: string; description?: string; source?: string }) {
+    return this.request('/api/boards', {
+      method: 'POST',
+      token,
+      body: data,
     });
   }
 

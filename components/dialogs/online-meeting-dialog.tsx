@@ -110,7 +110,7 @@ export function OnlineMeetingDialog({ isOpen, onClose }: OnlineMeetingDialogProp
           </div>
           <Button 
             type="submit" 
-            className="w-full bg-[#6b4eff] hover:bg-[#5a3ee6]"
+            className="w-full bg-[var(--primary)] hover:brightness-90 text-[var(--primary-foreground)]"
             disabled={isLoading || !isReady}
           >
             {isLoading ? (

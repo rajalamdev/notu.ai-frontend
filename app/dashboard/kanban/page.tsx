@@ -7,6 +7,11 @@ import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import NewBoardModal from "@/components/custom/NewBoardModal"
+import BoardCard from "@/components/custom/BoardCard"
+import useListParams from "@/hooks/use-list-params"
 import { IconPlus, IconLayoutBoard } from "@tabler/icons-react"
 import { useApiWithAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
@@ -22,27 +27,31 @@ interface Board {
 export default function KanbanListPage() {
   const router = useRouter()
   const { api, isReady, user } = useApiWithAuth()
+  const controls = useListParams({ defaultPageSize: 12 })
   const [boards, setBoards] = useState<Board[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   useEffect(() => {
-    if (isReady) {
-      loadBoards()
+    const loadBoards = async () => {
+      try {
+        setIsLoading(true)
+        const params: any = { ...controls.queryParams, search: controls.searchQuery }
+        const res = await api.getBoards(params as any)
+        const payload = res?.data || res
+        setBoards(payload || payload?.data || [])
+      } catch (error) {
+        console.error(error)
+        toast.error("Failed to load boards")
+        setBoards([])
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }, [isReady])
 
-  const loadBoards = async () => {
-    try {
-      setIsLoading(true)
-      const res = await api.getBoards()
-      setBoards(res.data || [])
-    } catch (error) {
-      console.error(error)
-      toast.error("Failed to load boards")
-    } finally {
-      setIsLoading(false)
-    }
-  }
+    if (isReady) loadBoards()
+    else setIsLoading(false)
+  }, [isReady, controls.page, controls.searchQuery, controls.filter, controls.source])
 
   const createBoardExample = async () => {
     try {
@@ -54,38 +63,6 @@ export default function KanbanListPage() {
 
   const myBoards = boards.filter(b => (b as any).userId?._id === user?.id || (b as any).userId === user?.id)
   const sharedBoards = boards.filter(b => (b as any).userId?._id !== user?.id && (b as any).userId !== user?.id)
-
-  const BoardCard = ({ board }: { board: Board }) => (
-    <Card 
-      key={board._id} 
-      className="hover:shadow-md transition-shadow cursor-pointer overflow-hidden group border-border/50 bg-white/50 backdrop-blur-sm"
-      onClick={() => router.push(`/dashboard/kanban/${board._id}`)}
-    >
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-purple-100 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
-              <IconLayoutBoard className="h-5 w-5" />
-            </div>
-            <CardTitle className="text-lg font-bold group-hover:text-purple-600 transition-colors line-clamp-1">{board.title}</CardTitle>
-          </div>
-        </div>
-        <CardDescription className="line-clamp-2 mt-2 h-10">{board.description || "No description provided"}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between pt-4 border-t border-border/50">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-            Updated {new Date(board.updatedAt).toLocaleDateString()}
-          </p>
-          {(board as any).userId?.name && (
-            <p className="text-[10px] font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
-              {(board as any).userId?._id === user?.id ? "Owner" : (board as any).userId?.name}
-            </p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  )
 
   return (
     <SidebarProvider
@@ -100,13 +77,41 @@ export default function KanbanListPage() {
         <div className="flex min-h-screen flex-col bg-slate-50/50">
           <div className="flex flex-1 flex-col p-6 lg:p-10 gap-8 max-w-7xl mx-auto w-full">
             <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Kanban Boards</h1>
-                <p className="text-slate-500 mt-2 font-medium">Manage and collaborate on meeting tasks efficiently.</p>
-              </div>
-              <Button onClick={createBoardExample} size="lg" className="rounded-full px-6 shadow-lg shadow-purple-200 bg-purple-600 hover:bg-purple-700">
-                <IconPlus className="mr-2 h-5 w-5" /> New Board
-              </Button>
+                  <div>
+                    <h1 className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--foreground)' }}>Kanban Boards</h1>
+                    <p className="mt-2 font-medium" style={{ color: 'var(--kanban-muted)' }}>Manage and collaborate on meeting tasks efficiently.</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                      <div className="hidden sm:block">
+                        <Input placeholder="Search boards..." value={controls.searchInput} onChange={(e:any)=>controls.setSearchInput(e.target.value)} className="w-64" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Select value={controls.filter} onValueChange={(v:any)=>controls.setFilter(v)}>
+                          <SelectTrigger className="w-[160px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All</SelectItem>
+                            <SelectItem value="mine">My Boards</SelectItem>
+                            <SelectItem value="shared">Shared with me</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Select value={controls.source || 'all'} onValueChange={(v:any)=>controls.setSource(v)}>
+                          <SelectTrigger className="w-[160px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Any Source</SelectItem>
+                            <SelectItem value="generated">Generated from Meeting</SelectItem>
+                            <SelectItem value="manual">Manual</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button onClick={() => setIsModalOpen(true)} size="lg" className="rounded-full px-6 shadow-lg" style={{ background: 'var(--kanban-primary)', color: 'var(--kanban-primary-foreground)' }}>
+                          <IconPlus className="mr-2 h-5 w-5" /> New Board
+                        </Button>
+                    </div>
             </div>
 
             {isLoading ? (
@@ -128,29 +133,39 @@ export default function KanbanListPage() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-12">
-                {/* My Boards */}
-                {myBoards.length > 0 && (
-                  <section className="space-y-6">
-                    <div className="flex items-center gap-3">
-                      <h2 className="text-xl font-bold text-slate-900">My Boards</h2>
-                      <span className="px-2.5 py-0.5 rounded-full bg-slate-900 text-white text-[11px] font-bold">{myBoards.length}</span>
+              <div className="space-y-8 w-full">
+                {controls.filter === 'all' && (
+                  <section className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>My Boards</h2>
+                      <span className="px-2.5 py-0.5 rounded-full bg-[var(--kanban-column-bg)] text-[var(--kanban-muted)] text-[11px] font-bold">{myBoards.length}</span>
                     </div>
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                      {myBoards.map((board) => <BoardCard key={board._id} board={board} />)}
+                      {myBoards.map((b) => <BoardCard key={b._id} board={b} />)}
                     </div>
                   </section>
                 )}
 
-                {/* Shared Boards */}
-                {sharedBoards.length > 0 && (
-                  <section className="space-y-6">
-                    <div className="flex items-center gap-3">
-                      <h2 className="text-xl font-bold text-slate-900">Shared with me</h2>
-                      <span className="px-2.5 py-0.5 rounded-full bg-purple-600 text-white text-[11px] font-bold">{sharedBoards.length}</span>
+                {controls.filter === 'all' && sharedBoards.length > 0 && (
+                  <section className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>Shared with me</h2>
+                      <span className="px-2.5 py-0.5 rounded-full bg-[var(--kanban-column-bg)] text-[var(--kanban-muted)] text-[11px] font-bold">{sharedBoards.length}</span>
                     </div>
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                      {sharedBoards.map((board) => <BoardCard key={board._id} board={board} />)}
+                      {sharedBoards.map((b) => <BoardCard key={b._id} board={b} />)}
+                    </div>
+                  </section>
+                )}
+
+                {controls.filter !== 'all' && (
+                  <section>
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>{controls.filter === 'mine' ? 'My Boards' : 'Shared with me'}</h2>
+                      <span className="px-2.5 py-0.5 rounded-full bg-[var(--kanban-column-bg)] text-[var(--kanban-muted)] text-[11px] font-bold">{controls.filter === 'mine' ? myBoards.length : sharedBoards.length}</span>
+                    </div>
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-4">
+                      {(controls.filter === 'mine' ? myBoards : sharedBoards).map((b) => <BoardCard key={b._id} board={b} />)}
                     </div>
                   </section>
                 )}
@@ -159,6 +174,7 @@ export default function KanbanListPage() {
           </div>
         </div>
       </SidebarInset>
+      <NewBoardModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </SidebarProvider>
   )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect } from "react"
+import { useState, useRef, useEffect } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import {
@@ -9,13 +9,15 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import MeetingCard from "@/components/custom/MeetingCard"
-import { IconCloudUpload, IconSearch, IconLayoutGrid, IconList, IconLoader2, IconX } from "@tabler/icons-react"
+import Pagination from "@/components/custom/Pagination"
+import { IconCloudUpload, IconLoader2, IconX } from "@tabler/icons-react"
 import { useApiWithAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import useListParams from "@/hooks/use-list-params"
+import ListToolbar from "@/components/custom/ListToolbar"
+import { normalizeMeetingsResponse } from "@/lib/meetings"
 
 interface Meeting {
   _id: string
@@ -26,6 +28,9 @@ interface Meeting {
   duration?: number
   createdAt: string
   type?: string
+  userRole?: 'owner' | 'editor' | 'viewer' | string
+  summarySnippet?: string
+  isUpload?: boolean
 }
 
 export default function UploadsPage() {
@@ -33,45 +38,48 @@ export default function UploadsPage() {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
+  const controls = useListParams({ defaultPageSize: 20, defaultType: 'upload' })
+
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-
-  // Fetch uploaded meetings
-  const fetchMeetings = useCallback(async () => {
-    if (!isReady) return
-    
-    try {
-      setIsLoading(true)
-      const response = await api.getMeetings({ limit: 20 })
-      // Filter to show only uploaded meetings (platform uses Title Case: 'Upload')
-      const uploadedMeetings = (response.meetings || []).filter(
-        (m: Meeting) => m.type === 'upload' || m.platform === 'Upload'
-      )
-      setMeetings(uploadedMeetings)
-    } catch (error) {
-      console.error("Error fetching meetings:", error)
-      toast.error("Gagal memuat meeting")
-    } finally {
-      setIsLoading(false)
-    }
-  }, [isReady, api])
+  const [totalPages, setTotalPages] = useState(1)
 
   useEffect(() => {
-    if (isReady) {
-      fetchMeetings()
-    } else {
-      setIsLoading(false)
+    const fetchMeetings = async () => {
+      try {
+        if (meetings.length === 0) setIsLoading(true)
+        else controls.setIsFetching(true)
+
+        const params: any = { ...controls.queryParams, search: controls.searchQuery }
+        const response = await api.getMeetings(params as any)
+        const { meetings: meetingsList, pagination } = normalizeMeetingsResponse(response, controls.pageSize)
+        setMeetings(meetingsList)
+        setTotalPages(pagination.totalPages || 1)
+      } catch (error) {
+        console.error("Error fetching meetings:", error)
+        toast.error("Gagal memuat meeting")
+        setMeetings([])
+      } finally {
+        setIsLoading(false)
+        controls.setIsFetching(false)
+      }
     }
-  }, [isReady, fetchMeetings])
+
+    if (isReady) fetchMeetings()
+    else setIsLoading(false)
+  }, [isReady, controls.page, controls.searchQuery, controls.pageSize, controls.filter, controls.type])
+
+  useEffect(() => {
+    controls.setPage(1)
+  }, [controls.filter, controls.searchQuery, controls.type])
 
   // Handle file selection
   const handleFileSelect = (file: File) => {
-    const allowedTypes = ['audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/wave', 'video/mp4', 'video/webm']
+    const allowedTypes = ['audio/mpeg', 'audio/mp4', 'audio/wav', 'video/mp4', 'audio/x-m4a']
     const maxSize = 100 * 1024 * 1024 // 100MB
     
     if (!allowedTypes.includes(file.type)) {
@@ -168,20 +176,12 @@ export default function UploadsPage() {
     status: meeting.status
   })
 
-  // Filter meetings by search
-  const filteredMeetings = meetings.filter(meeting => 
-    meeting.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    meeting.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
   return (
     <SidebarProvider
-      style={
-        {
-          "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 12)",
-        } as React.CSSProperties
-      }
+      style={{
+        "--sidebar-width": "calc(var(--spacing) * 72)",
+        "--header-height": "calc(var(--spacing) * 12)",
+      } as React.CSSProperties}
     >
       <AppSidebar variant="inset" />
       <SidebarInset>
@@ -195,10 +195,10 @@ export default function UploadsPage() {
                   <CardContent className="p-6">
                     <div 
                       className={`border-2 border-dashed rounded-xl transition-colors ${
-                        isDragging 
-                          ? 'border-[#6b4eff] bg-[#EFE8FF]' 
-                          : 'border-[#E2D9FF] bg-[#FBFAFF]'
-                      }`}
+                          isDragging 
+                            ? 'border-[var(--primary)] bg-[var(--primary)]/10' 
+                            : 'border-[var(--border)] bg-[var(--card)]'
+                        }`}
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
                       onDrop={handleDrop}
@@ -213,23 +213,23 @@ export default function UploadsPage() {
                       
                       {selectedFile ? (
                         <div className="flex flex-col items-center justify-center py-12 text-center">
-                          <div className="rounded-full bg-[#EFE8FF] p-3 text-[#6b4eff] mb-4">
+                          <div className="rounded-full bg-[var(--primary)]/10 p-3 text-[var(--primary)] mb-4">
                             <IconCloudUpload className="h-6 w-6" />
                           </div>
-                          <h2 className="text-[15px] font-semibold text-[#1E1E1E]">{selectedFile.name}</h2>
-                          <p className="mt-1 text-xs text-[#6B6B6B]">
+                          <h2 className="text-[15px] font-semibold text-[var(--foreground)]">{selectedFile.name}</h2>
+                          <p className="mt-1 text-xs text-[var(--muted-foreground)]">
                             {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
                           </p>
                           
                           {isUploading && (
-                            <div className="w-64 mt-4">
-                              <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div className="w-64 mt-4">
+                              <div className="w-full bg-[var(--input)] rounded-full h-2">
                                 <div 
-                                  className="bg-[#6b4eff] h-2 rounded-full transition-all" 
+                                  className="bg-[var(--primary)] h-2 rounded-full transition-all" 
                                   style={{ width: `${uploadProgress}%` }}
                                 />
                               </div>
-                              <p className="text-xs text-[#6B6B6B] mt-2">Uploading... {uploadProgress}%</p>
+                              <p className="text-xs text-[var(--muted-foreground)] mt-2">Uploading... {uploadProgress}%</p>
                             </div>
                           )}
                           
@@ -243,7 +243,7 @@ export default function UploadsPage() {
                               Cancel
                             </Button>
                             <Button 
-                              className="bg-[#6b4eff] hover:bg-[#5b41ff] text-white"
+                              className="bg-[var(--primary)] hover:brightness-90 text-[var(--primary-foreground)]"
                               onClick={handleUpload}
                               disabled={isUploading}
                             >
@@ -260,13 +260,13 @@ export default function UploadsPage() {
                         </div>
                       ) : (
                         <div className="flex flex-col items-center justify-center py-12 text-center">
-                          <div className="rounded-full bg-[#EFE8FF] p-3 text-[#6b4eff] mb-4">
+                          <div className="rounded-full bg-[var(--primary-100)] p-3 text-[var(--primary)] mb-4">
                             <IconCloudUpload className="h-6 w-6" />
                           </div>
-                          <h2 className="text-[15px] font-semibold text-[#1E1E1E]">Upload A File To Generate A Transcript</h2>
-                          <p className="mt-1 text-xs text-[#6B6B6B]">Browse Or Drag And Drop MP3, WAV, Or MP4 Files. (Max Video Size 100MB)</p>
+                          <h2 className="text-[15px] font-semibold text-[var(--foreground)]">Upload A File To Generate A Transcript</h2>
+                          <p className="mt-1 text-xs text-[var(--muted-foreground)]">Browse Or Drag And Drop MP3, WAV, Or MP4 Files. (Max Video Size 100MB)</p>
                           <Button 
-                            className="mt-5 bg-[#6b4eff] hover:bg-[#5b41ff] text-white"
+                            className="mt-5 bg-[var(--primary)] hover:bg-[var(--primary-600)] text-[var(--primary-foreground)]"
                             onClick={() => fileInputRef.current?.click()}
                           >
                             Upload Your Meeting
@@ -282,45 +282,12 @@ export default function UploadsPage() {
               <div className="px-4 lg:px-6">
                 <div className="flex items-end justify-between gap-4 flex-wrap">
                   <div>
-                    <h3 className="text-[16px] font-semibold text-[#1E1E1E]">Meeting History</h3>
-                    <p className="text-xs text-[#6B6B6B]">Cari Meeting Anda Yang Telah Dibuat</p>
+                    <h3 className="text-[16px] font-semibold text-[var(--foreground)]">Meeting History</h3>
+                    <p className="text-xs text-[var(--muted-foreground)]">Cari Meeting Anda Yang Telah Dibuat</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="relative w-[260px]">
-                      <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        className="pl-9" 
-                        placeholder="Search Notes..." 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                    </div>
-                    <Select defaultValue="all">
-                      <SelectTrigger className="w-[130px]">
-                        <SelectValue placeholder="All Notes" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Notes</SelectItem>
-                        <SelectItem value="mine">My Notes</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select defaultValue="today">
-                      <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="Today" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="today">Today</SelectItem>
-                        <SelectItem value="week">This Week</SelectItem>
-                        <SelectItem value="month">This Month</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <div className="flex items-center rounded-md border bg-white p-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-[#6B6B6B]">
-                        <IconList className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-[#6B6B6B]">
-                        <IconLayoutGrid className="h-4 w-4" />
-                      </Button>
+                    <div className="w-full">
+                      <ListToolbar controls={controls as any} hideType />
                     </div>
                   </div>
                 </div>
@@ -330,19 +297,26 @@ export default function UploadsPage() {
               <div className="px-4 lg:px-6">
                 {isLoading ? (
                   <div className="flex items-center justify-center py-12">
-                    <IconLoader2 className="h-8 w-8 animate-spin text-[#6b4eff]" />
+                    <IconLoader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
                   </div>
-                ) : filteredMeetings.length === 0 ? (
+                ) : meetings.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <p className="text-lg font-medium text-gray-900">Belum ada file yang diupload</p>
-                    <p className="text-sm text-gray-500 mt-1">Upload file audio/video untuk memulai transkripsi</p>
+                    <p className="text-lg font-medium text-[var(--foreground)]">Belum ada file yang diupload</p>
+                    <p className="text-sm text-[var(--muted-foreground)] mt-1">Upload file audio/video untuk memulai transkripsi</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    {filteredMeetings.map((meeting) => (
-                      <MeetingCard key={meeting._id} data={formatMeetingForCard(meeting)} />
-                    ))}
-                  </div>
+                  <>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      {meetings.map((meeting) => (
+                        <MeetingCard key={meeting._id} data={formatMeetingForCard(meeting)} />
+                      ))}
+                    </div>
+
+                    <div className="mt-6 flex items-center justify-center gap-4">
+                      <Pagination page={controls.page} totalPages={totalPages} onPageChange={(p) => controls.setPage(p)} />
+                      {controls.isFetching && <IconLoader2 className="h-4 w-4 animate-spin text-[var(--primary)]" />}
+                    </div>
+                  </>
                 )}
               </div>
             </div>

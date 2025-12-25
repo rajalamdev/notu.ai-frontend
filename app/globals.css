@@ -80,6 +80,21 @@
   --sidebar-ring: oklch(0.704 0.04 256.788);
 }
 
+/* Kanban specific tokens */
+:root {
+  --kanban-primary: var(--primary);
+  --kanban-primary-foreground: var(--primary-foreground);
+  --kanban-card-radius: 0.75rem; /* nicer rounded cards */
+  --kanban-card-shadow: 0 6px 18px rgba(16,24,40,0.04); /* subtle elevation */
+  --kanban-column-bg: var(--card);
+  --kanban-column-border: var(--border);
+  --kanban-column-radius: var(--radius-md);
+  --kanban-card-bg: var(--card);
+  --kanban-card-foreground: var(--card-foreground);
+  --kanban-muted: var(--muted-foreground);
+  --kanban-accent: var(--accent);
+}
+
 .dark {
   --background: oklch(0.129 0.042 264.695);
   --foreground: oklch(0.984 0.003 247.858);

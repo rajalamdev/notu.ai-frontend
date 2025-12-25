@@ -26,9 +26,9 @@ export function SiteHeader() {
               />
             </div> */}
             <div className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500 text-xs font-semibold text-white">1</div>
-              <span className="text-sm text-gray-600">Free meetings</span>
-              <Button className="bg-green-500 hover:bg-green-600 text-white">Upgrade</Button>
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--accent)] text-xs font-semibold text-[var(--accent-foreground)]">1</div>
+              <span className="text-sm text-[var(--muted-foreground)]">Free meetings</span>
+              <Button className="bg-[var(--accent)] hover:brightness-90 text-[var(--accent-foreground)]">Upgrade</Button>
             </div>
             <Separator
               orientation="vertical"
@@ -36,7 +36,7 @@ export function SiteHeader() {
             />
             {/* Right - Actions and Profile */}
             <div className="flex items-center gap-4">
-              <Button className="bg-[#6b4eff] hover:bg-[#5a3ee6] text-white">
+              <Button className="bg-[var(--primary)] hover:brightness-90 text-[var(--primary-foreground)]">
                 <IconVideo className="mr-2 h-4 w-4" />
                 Capture
               </Button>

@@ -4,7 +4,7 @@ import React from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from '../ui/badge'
-import { IconDots, IconVideo, IconLoader2 } from '@tabler/icons-react'
+import { IconDots, IconVideo, IconLoader2, IconUpload, IconBrandGoogle, IconBrandZoom } from '@tabler/icons-react'
 
 interface Props {
   id: string | number
@@ -49,30 +49,36 @@ const MeetingCard = ({ data } : {data: Props }) => {
   return (
     <Card 
       key={data.id} 
-      className="bg-white shadow-border/50 cursor-pointer hover:shadow-md transition-shadow"
+      className="bg-[var(--card)] shadow-border/50 cursor-pointer hover:shadow-md transition-shadow"
       onClick={handleClick}
     >
       <CardContent>
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Badge className="bg-purple-100 text-[#6b4eff] hover:bg-purple-100">
+            <Badge className="bg-[var(--accent)]/10 text-[var(--primary)] hover:bg-[var(--accent)]/10">
               {data.tag}
             </Badge>
             {getStatusBadge()}
           </div>
           <div className="flex items-center gap-2">
-            <IconVideo className="h-4 w-4 text-gray-600" />
-            <IconDots className="h-4 w-4 text-gray-600" />
+            <IconVideo className="h-4 w-4 text-[var(--muted-foreground)]" />
+            <IconDots className="h-4 w-4 text-[var(--muted-foreground)]" />
           </div>
         </div>
 
-        <div className="mb-3 flex items-center gap-2 text-sm text-gray-500">
-          <IconVideo className="h-4 w-4" />
+        <div className="mb-3 flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
+          {(() => {
+            const isUpload = data.type === 'upload' || data.platform === 'Upload'
+            if (isUpload) return <IconUpload className="h-4 w-4" />
+            if (data.platform === 'Google Meet') return <IconBrandGoogle className="h-4 w-4" />
+            if (data.platform === 'Zoom') return <IconBrandZoom className="h-4 w-4" />
+            return <IconVideo className="h-4 w-4" />
+          })()}
           <span>{data.platform || 'Google Meet'} • {data.date}</span>
         </div>
 
-        <h3 className="mb-2 font-semibold text-gray-900">{data.title}</h3>
-        <p className="text-sm text-gray-600 leading-relaxed line-clamp-2">{data.description}</p>
+        <h3 className="mb-2 font-semibold text-[var(--foreground)]">{data.title}</h3>
+        <p className="text-sm text-[var(--muted-foreground)] leading-relaxed line-clamp-2">{data.description}</p>
       </CardContent>
     </Card>
   )

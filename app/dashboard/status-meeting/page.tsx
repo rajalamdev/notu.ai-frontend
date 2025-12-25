@@ -25,6 +25,9 @@ interface Meeting {
   processingProgress?: number
   participants?: any[]
   summary?: string
+  userRole?: 'owner' | 'editor' | 'viewer' | string
+  summarySnippet?: string
+  isUpload?: boolean
   actionItems?: any[]
 }
 
@@ -251,17 +254,17 @@ export default function StatusMeetingPage() {
                 
                 {isLoading ? (
                   <div className="flex items-center justify-center py-12">
-                    <IconLoader2 className="h-8 w-8 animate-spin text-[#6b4eff]" />
-                  </div>
+                      <IconLoader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
+                    </div>
                 ) : meetings.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <p className="text-lg font-medium text-gray-900">Belum ada meeting</p>
-                    <p className="text-sm text-gray-500 mt-1">Mulai dengan membuat meeting baru</p>
+                    <p className="text-lg font-medium text-[var(--foreground)]">Belum ada meeting</p>
+                    <p className="text-sm text-[var(--muted-foreground)] mt-1">Mulai dengan membuat meeting baru</p>
                   </div>
                 ) : (
                   <div className="grid gap-4">
                     {meetings.map((meeting) => (
-                      <Card key={meeting._id} className={meetingIdFromUrl === meeting._id ? 'ring-2 ring-[#6b4eff]' : ''}>
+                      <Card key={meeting._id} className={meetingIdFromUrl === meeting._id ? 'ring-2 ring-[var(--primary)]' : ''}>
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4 flex-1">
@@ -281,9 +284,9 @@ export default function StatusMeetingPage() {
                                 )}
                                 {meeting.processingProgress !== undefined && meeting.status === 'processing' && (
                                   <div className="mt-2">
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div className="w-full bg-[var(--input)] rounded-full h-2">
                                       <div 
-                                        className="bg-[#6b4eff] h-2 rounded-full transition-all" 
+                                        className="bg-[var(--primary)] h-2 rounded-full transition-all" 
                                         style={{ width: `${meeting.processingProgress}%` }}
                                       />
                                     </div>

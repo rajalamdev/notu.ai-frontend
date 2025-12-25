@@ -471,7 +471,7 @@ export default function MeetingDetailPage() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <IconLoader2 className="h-12 w-12 animate-spin text-purple-600" />
+          <IconLoader2 className="h-12 w-12 animate-spin text-[var(--primary)]" />
           <p className="text-muted-foreground">Memuat data meeting...</p>
         </div>
       </div>
@@ -560,8 +560,8 @@ export default function MeetingDetailPage() {
           
           <div className="flex items-center gap-2">
             <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-              <DialogTrigger asChild>
-                <Button className="bg-[#6b4eff] hover:bg-[#5a3ee6] text-white rounded-full px-4 h-9 flex items-center gap-2" 
+                <DialogTrigger asChild>
+                <Button className="bg-[var(--primary)] hover:brightness-90 text-[var(--primary-foreground)] rounded-full px-4 h-9 flex items-center gap-2" 
                        onClick={() => handleGenerateShareLink()}>
                   <IconShare className="h-4 w-4" />
                   Share
@@ -834,7 +834,7 @@ export default function MeetingDetailPage() {
                         <path d="M20 6L9 17l-5-5"/>
                       </svg>
                     </div>
-                    <span className="text-xs text-purple-700">
+                    <span className="text-xs text-[var(--primary)]">
                       {tasks.some((t: any) => t.boardId) 
                         ? "Kanban board telah dibuat untuk meeting ini" 
                         : "Todolist siap dimigrasi ke kanban!"}
@@ -919,7 +919,7 @@ export default function MeetingDetailPage() {
             {/* Executive Summary */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-base font-semibold text-purple-700">Executive Summary</h2>
+                <h2 className="text-base font-semibold text-[var(--primary)]">Executive Summary</h2>
                 <Dialog open={editingField === 'executiveSummary'} onOpenChange={(open) => {
                   if (!open) setEditingField(null)
                   else setEditingField('executiveSummary')
@@ -962,7 +962,7 @@ export default function MeetingDetailPage() {
             {Object.keys(highlights).length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-base font-semibold text-purple-700">Catatan Rapat</h2>
+                  <h2 className="text-base font-semibold text-[var(--primary)]">Catatan Rapat</h2>
                   <Dialog open={editingField === 'highlights'} onOpenChange={(open) => {
                     if (!open) setEditingField(null)
                     else setEditingField('highlights')
@@ -1015,7 +1015,7 @@ export default function MeetingDetailPage() {
                 <div className="space-y-6">
                   {Object.entries(highlights).map(([header, content]) => (
                     <div key={header}>
-                      <h3 className="font-medium text-sm mb-2 text-purple-700">{header}</h3>
+                      <h3 className="font-medium text-sm mb-2 text-[var(--primary)]">{header}</h3>
                       <div className="prose prose-sm prose-gray max-w-none text-muted-foreground">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
                       </div>
@@ -1028,7 +1028,7 @@ export default function MeetingDetailPage() {
             {/* Message when no highlights available */}
             {Object.keys(highlights).length === 0 && (
               <div>
-                <h2 className="text-base font-semibold text-purple-700 mb-2">Catatan Rapat</h2>
+                <h2 className="text-base font-semibold text-[var(--primary)] mb-2">Catatan Rapat</h2>
                 <p className="text-sm text-muted-foreground">Tidak ada catatan tersedia</p>
               </div>
             )}
@@ -1037,7 +1037,7 @@ export default function MeetingDetailPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-base font-semibold text-purple-700">Action Items</h2>
+                  <h2 className="text-base font-semibold text-[var(--primary)]">Action Items</h2>
                   <span className="text-xs text-muted-foreground bg-gray-100 px-2 py-0.5 rounded-full">Task Integration</span>
                 </div>
               </div>
@@ -1091,7 +1091,7 @@ export default function MeetingDetailPage() {
             {/* Conclusion */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-base font-semibold text-purple-700">Conclusion</h2>
+                <h2 className="text-base font-semibold text-[var(--primary)]">Conclusion</h2>
                 <Dialog open={editingField === 'conclusion'} onOpenChange={(open) => {
                   if (!open) setEditingField(null)
                   else setEditingField('conclusion')
@@ -1231,7 +1231,7 @@ export default function MeetingDetailPage() {
                     onClick={() => setAutoFollow(!autoFollow)}
                     className={`flex items-center gap-2 text-xs px-2 py-1 rounded ${
                       autoFollow 
-                        ? 'bg-purple-100 text-purple-700' 
+                        ? 'bg-muted text-[var(--primary)]' 
                         : 'bg-gray-100 text-gray-600'
                     }`}
                   >

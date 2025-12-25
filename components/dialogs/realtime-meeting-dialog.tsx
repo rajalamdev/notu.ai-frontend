@@ -50,7 +50,7 @@ export function RealtimeMeetingDialog({ isOpen, onClose }: RealtimeMeetingDialog
               <div className="text-4xl font-mono">{timer}</div>
             </div>
           </div>
-          <Button type="submit" className="w-full bg-[#6b4eff] hover:bg-[#5a3ee6]">
+          <Button type="submit" className="w-full bg-[var(--primary)] hover:brightness-90 text-[var(--primary-foreground)]">
             Mulai
           </Button>
         </form>

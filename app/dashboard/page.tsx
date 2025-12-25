@@ -14,10 +14,14 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import MeetingCard from "@/components/custom/MeetingCard"
-import { IconCamera, IconMicrophone, IconFileUpload, IconChartBar, IconSearch, IconDotsVertical, IconChevronRight, IconChevronDown, IconList, IconGrid4x4, IconLoader2 } from "@tabler/icons-react"
+import Pagination from "@/components/custom/Pagination"
+import { IconCamera, IconMicrophone, IconFileUpload, IconChartBar, IconSearch, IconDotsVertical, IconChevronRight, IconChevronDown, IconList, IconGrid4x4, IconLoader2, IconLayoutGrid } from "@tabler/icons-react"
 import { OnlineMeetingDialog } from "@/components/dialogs/online-meeting-dialog"
 import { RealtimeMeetingDialog } from "@/components/dialogs/realtime-meeting-dialog"
 import { useAuth, useApiWithAuth } from "@/hooks/use-auth"
+import useListParams from "@/hooks/use-list-params"
+import ListToolbar from "@/components/custom/ListToolbar"
+import { normalizeMeetingsResponse } from "@/lib/meetings"
 import { useRouter } from "next/navigation"
 
 const quickActions = [
@@ -25,25 +29,25 @@ const quickActions = [
     title: "Take Notes From Online Meeting",
     description: "Using Online Bot For Google Meet",
     icon: IconCamera,
-    color: "bg-[#6b4eff]/10",
+    color: "bg-[var(--primary)]/10",
   },
   {
     title: "Take Notes From Realtime Meeting",
     description: "Using Online Bot For Google Meet",
     icon: IconMicrophone,
-    color: "bg-[#6b4eff]/10",
+    color: "bg-[var(--primary)]/10",
   },
   {
     title: "Take Notes From Upload File",
     description: "Using Online Bot For Google Meet",
     icon: IconFileUpload,
-    color: "bg-[#6b4eff]/10",
+    color: "bg-[var(--primary)]/10",
   },
   {
     title: "Analytics Your Meeting",
     description: "Using Online Bot For Google Meet",
     icon: IconChartBar,
-    color: "bg-[#6b4eff]/10",
+    color: "bg-[var(--primary)]/10",
   },
 ]
 
@@ -56,6 +60,10 @@ interface Meeting {
   duration?: number
   createdAt: string
   type?: string
+  // Derived/server-provided fields
+  userRole?: 'owner' | 'editor' | 'viewer' | string
+  summarySnippet?: string
+  isUpload?: boolean
 }
 
 export default function Page() {
@@ -63,8 +71,9 @@ export default function Page() {
   const [isRealtimeMeetingOpen, setIsRealtimeMeetingOpen] = useState(false)
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [isLoadingMeetings, setIsLoadingMeetings] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [meetingFilter, setMeetingFilter] = useState<'all' | 'mine' | 'shared'>('all')
+  const [totalPages, setTotalPages] = useState(1)
+
+  const controls = useListParams({ defaultPageSize: 10 })
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
   const { api, isReady } = useApiWithAuth()
@@ -77,36 +86,47 @@ export default function Page() {
     }
   }, [authLoading, isAuthenticated, router])
 
-  // Fetch meetings on mount and when filter changes
+  // Fetch meetings on mount and when filter/page/search changes
   useEffect(() => {
     const fetchMeetings = async () => {
       try {
-        setIsLoadingMeetings(true)
-        const response = await api.getMeetings({ limit: 10, filter: meetingFilter } as any)
-        setMeetings(response.meetings || [])
+        if ((meetings || []).length === 0) setIsLoadingMeetings(true)
+        else controls.setIsFetching(true)
+
+        const params: any = { ...controls.queryParams, search: controls.searchQuery }
+        const response = await api.getMeetings(params as any)
+        const { meetings: meetingsList, pagination } = normalizeMeetingsResponse(response, controls.pageSize)
+        setMeetings(meetingsList)
+        setTotalPages(pagination.totalPages || 1)
       } catch (error) {
         console.error("Error fetching meetings:", error)
         setMeetings([])
       } finally {
         setIsLoadingMeetings(false)
+        controls.setIsFetching(false)
       }
     }
 
-    // Only fetch when auth is done AND we have a token
     if (!authLoading) {
       if (isReady) {
         fetchMeetings()
       } else {
-        // No token available, stop loading
         setIsLoadingMeetings(false)
       }
     }
-  }, [isReady, authLoading, meetingFilter])
+  }, [isReady, authLoading, controls.page, controls.searchQuery, controls.pageSize, controls.filter, controls.type])
+
+  // Reset to first page when filter, search, or meeting type changes
+  useEffect(() => {
+    controls.setPage(1)
+  }, [controls.filter, controls.searchQuery, controls.type])
+
+  // search debounce handled by useListParams
 
   // Format meeting data for MeetingCard
   const formatMeetingForCard = (meeting: Meeting) => ({
     id: meeting._id,
-    tag: "#My Meeting",
+    tag: meeting.userRole === 'owner' ? '#My Meeting' : (meeting.userRole ? `#${meeting.userRole}` : '#Meeting'),
     platform: meeting.platform || "Google Meet",
     date: new Date(meeting.createdAt).toLocaleDateString('id-ID', {
       weekday: 'long',
@@ -117,16 +137,12 @@ export default function Page() {
       minute: '2-digit'
     }),
     title: meeting.title || "Untitled Meeting",
-    description: meeting.description || "Meeting sedang diproses...",
+    description: meeting.summarySnippet || meeting.description || "Meeting sedang diproses...",
     type: meeting.type || "online",
     status: meeting.status
   })
 
-  // Filter meetings by search
-  const filteredMeetings = meetings.filter(meeting => 
-    meeting.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    meeting.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // No client-side filtering; server returns filtered/paginated results.
 
   return (
     <SidebarProvider
@@ -146,13 +162,13 @@ export default function Page() {
             <div className="flex flex-col gap-6 py-6">
               {/* Top welcome */}
               <div className="px-4 lg:px-6">
-                <h2 className="text-3xl font-bold text-[#2b1152]">Welcome Abroad, {user?.name?.split(' ')[0] || 'User'}</h2>
+                <h2 className="text-3xl font-bold text-[var(--foreground)]">Welcome Abroad, {user?.name?.split(' ')[0] || 'User'}</h2>
                 <p className="text-sm text-muted-foreground">Notu Siap Untuk Menjadi Asisten Anda😊</p>
               </div>
 
               {/* Quick action cards */}
               <div className="px-4 lg:px-6">
-                <h3 className="text-base font-medium text-[#2b1152] mb-4">Quick Action For Your Meeting</h3>
+                <h3 className="text-base font-medium text-[var(--foreground)] mb-4">Quick Action For Your Meeting</h3>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
                   {quickActions.map((action, idx) => {
                     const handleClick = () => {
@@ -170,21 +186,21 @@ export default function Page() {
                     return (
                       <div
                         key={idx}
-                        className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow cursor-pointer group"
+                        className="bg-[var(--card)] rounded-xl shadow-sm border border-border p-4 hover:shadow-md transition-shadow cursor-pointer group"
                         onClick={handleClick}
                       >
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center gap-4">
                             <div className={`rounded-lg ${action.color} p-2`}>
-                              {<action.icon className="h-5 w-5 text-[#6b4eff]" />}
+                              {<action.icon className="h-5 w-5 text-[var(--primary)]" />}
                             </div>
                             <div className="flex flex-col items-start text-left gap-1.5">
-                              <h3 className="font-semibold text-[#2b1152]">{action.title}</h3>
+                              <h3 className="font-semibold text-[var(--foreground)]">{action.title}</h3>
                               <p className="text-sm text-muted-foreground">{action.description}</p>
                             </div>
                           </div>
                           <div>
-                            <IconChevronRight className="h-4 w-4 text-gray-400" />
+                            <IconChevronRight className="h-4 w-4 text-[var(--muted-foreground)]" />
                           </div>
                         </div>
                       </div>
@@ -195,71 +211,37 @@ export default function Page() {
 
               {/* Meeting History Section */}
               <div className="px-4 lg:px-6">
-                <h2 className="mb-2 text-xl font-bold text-gray-900">Meeting History</h2>
-                <p className="mb-6 text-sm text-gray-600">Cari Meeting Anda Yang Telah Dibuat</p>
+                <h2 className="mb-2 text-xl font-bold text-[var(--foreground)]">Meeting History</h2>
+                <p className="mb-6 text-sm text-[var(--muted-foreground)]">Cari Meeting Anda Yang Telah Dibuat</p>
 
-                {/* Search and Filter Bar */}
-                <div className="mb-6 flex items-center gap-4">
-                  <div className="relative flex-1">
-                    <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <Input 
-                      placeholder="Search Notes.." 
-                      className="pl-10 pr-4"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                  <Select value={meetingFilter} onValueChange={(val: any) => setMeetingFilter(val)}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Semua Meeting" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Semua Meeting</SelectItem>
-                      <SelectItem value="mine">Meeting Saya</SelectItem>
-                      <SelectItem value="shared">Dibagikan ke Saya</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button variant="outline" className="flex items-center gap-2 bg-background-2 border-border">
-                    Semua Jenis
-                    <IconChevronDown className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" className="flex items-center gap-2 bg-background-2 border-border">
-                    Today
-                    <IconChevronDown className="h-4 w-4" />
-                  </Button>
-                  <div className="flex rounded-lg border border-gray-300 p-1">
-                    <Button 
-                      size="sm" 
-                      className="h-8 w-8 p-0 bg-[#6b4eff] text-white hover:bg-[#5a3ee6]"
-                    >
-                      <IconList className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="ghost"
-                      className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-100"
-                    >
-                      <IconGrid4x4 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                {/* Search and Filter Bar (shared) */}
+                <div className="mb-6">
+                  <ListToolbar controls={controls as any} />
                 </div>
 
                 {/* Meeting Cards Grid */}
                 {isLoadingMeetings ? (
                   <div className="flex items-center justify-center py-12">
-                    <IconLoader2 className="h-8 w-8 animate-spin text-[#6b4eff]" />
+                    <IconLoader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
                   </div>
-                ) : filteredMeetings.length === 0 ? (
+                ) : meetings.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <p className="text-lg font-medium text-gray-900">Belum ada meeting</p>
-                    <p className="text-sm text-gray-500 mt-1">Mulai dengan membuat meeting baru</p>
+                    <p className="text-lg font-medium text-[var(--foreground)]">Belum ada meeting</p>
+                    <p className="text-sm text-[var(--muted-foreground)] mt-1">Mulai dengan membuat meeting baru</p>
                   </div>
                 ) : (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {filteredMeetings.map((meeting) => (
-                      <MeetingCard key={meeting._id} data={formatMeetingForCard(meeting)} />
-                    ))}
-                  </div>
+                  <>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {meetings.map((meeting) => (
+                        <MeetingCard key={meeting._id} data={formatMeetingForCard(meeting)} />
+                      ))}
+                    </div>
+                    {/* Pagination controls */}
+                    <div className="mt-6 flex items-center justify-center gap-4">
+                      <Pagination page={controls.page} totalPages={totalPages} onPageChange={(p) => controls.setPage(p)} />
+                      {controls.isFetching && <IconLoader2 className="h-4 w-4 animate-spin text-[var(--primary)]" />}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
